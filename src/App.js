@@ -15,6 +15,8 @@ function App() {
   });
 
   const [search, setSearch] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [editIndex, setEditIndex] = useState(null);
 
   useEffect(() => {
     localStorage.setItem("inventory", JSON.stringify(items));
@@ -27,15 +29,24 @@ function App() {
 
   const addItem = () => {
     if (!formData.name || !formData.quantity || !formData.cost || !formData.date) return;
-    setItems([
-      ...items,
-      {
-        ...formData,
-        quantity: +formData.quantity,
-        cost: +formData.cost,
-        threshold: +formData.threshold
-      }
-    ]);
+
+    const newItem = {
+      ...formData,
+      quantity: +formData.quantity,
+      cost: +formData.cost,
+      threshold: +formData.threshold
+    };
+
+    if (isEditing) {
+      const updatedItems = [...items];
+      updatedItems[editIndex] = newItem;
+      setItems(updatedItems);
+      setIsEditing(false);
+      setEditIndex(null);
+    } else {
+      setItems([...items, newItem]);
+    }
+
     setFormData({ name: "", quantity: "", cost: "", threshold: "", date: "" });
   };
 
@@ -43,6 +54,14 @@ function App() {
     const newItems = [...items];
     newItems.splice(index, 1);
     setItems(newItems);
+  };
+
+  const startEdit = (index) => {
+    const item = items[index];
+    setFormData(item);
+    setIsEditing(true);
+    setEditIndex(index);
+    window.scrollTo({ top: 0, behavior: "smooth" }); // scroll to form
   };
 
   const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
@@ -58,7 +77,7 @@ function App() {
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-6">
       <div className="bg-white p-6 rounded shadow">
-        <h2 className="text-xl font-semibold mb-4">Add New Item</h2>
+        <h2 className="text-xl font-semibold mb-4">{isEditing ? "Edit Item" : "Add New Item"}</h2>
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
           <input name="name" value={formData.name} onChange={handleChange} className="input" placeholder="Enter item name" />
           <input name="quantity" value={formData.quantity} onChange={handleChange} className="input" placeholder="Enter quantity" />
@@ -66,15 +85,24 @@ function App() {
           <input name="threshold" value={formData.threshold} onChange={handleChange} className="input" placeholder="Low stock alert level" />
           <input name="date" type="date" value={formData.date} onChange={handleChange} className="input" />
         </div>
-        <button onClick={addItem} className="mt-4 px-4 py-2 bg-blue-700 text-white rounded">Add Item</button>
+        <button onClick={addItem} className={`mt-4 px-4 py-2 rounded ${isEditing ? "bg-yellow-500" : "bg-blue-700"} text-white`}>
+          {isEditing ? "Save Changes" : "Add Item"}
+        </button>
       </div>
 
-      <input type="text" placeholder="Search by item name or purchase date..." value={search} onChange={(e) => setSearch(e.target.value)} className="input w-full" />
+      <input
+        type="text"
+        placeholder="Search by item name or purchase date..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="input w-full"
+      />
 
       <div className="grid md:grid-cols-2 gap-4">
         {filteredItems.map((item, index) => (
           <div key={index} className={`p-4 rounded shadow ${item.quantity <= item.threshold ? "bg-red-50" : "bg-green-50"}`}>
-            <h3 className="text-lg font-bold">{item.name}{" "}
+            <h3 className="text-lg font-bold">
+              {item.name}{" "}
               <span className={`text-sm font-medium ${item.quantity <= item.threshold ? "text-red-600" : "text-green-600"}`}>
                 {item.quantity <= item.threshold ? "Low Stock" : "In Stock"}
               </span>
@@ -83,7 +111,10 @@ function App() {
             <p>Cost: ₹{item.cost}</p>
             <p>Threshold: {item.threshold}</p>
             <p>Purchase Date: {item.date}</p>
-            <button onClick={() => deleteItem(index)} className="mt-2 px-3 py-1 bg-red-500 text-white rounded">Delete</button>
+            <div className="flex gap-2 mt-2">
+              <button onClick={() => startEdit(index)} className="px-3 py-1 bg-yellow-500 text-white rounded">Edit</button>
+              <button onClick={() => deleteItem(index)} className="px-3 py-1 bg-red-500 text-white rounded">Delete</button>
+            </div>
           </div>
         ))}
       </div>
